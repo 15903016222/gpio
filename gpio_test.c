@@ -34,5 +34,6 @@ int main(int argc,char **argv) {
 	sleep (1);
 	res = ioctl (fd, EIM_EB1_LOW, &tmp);
 	
+	close (fd);
 	return 0;
 }

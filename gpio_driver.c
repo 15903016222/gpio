@@ -24,6 +24,9 @@
 static int gMajor; /* major number of device */
 static struct class *gpio_class;
 
+#define EIM_EB0_REG    0x020E010C
+#define EIM_EB1_REG    0x020E0110
+
 #define IMX_GPIO_NR(bank, nr)  (((bank) - 1) * 32 + (nr))
 #define EIM_EB0 (IMX_GPIO_NR(2, 28))
 #define EIM_EB1 (IMX_GPIO_NR(2, 29))
@@ -115,9 +118,9 @@ int __init gpio_init_module(void)
         return -1;
     }
 
-    addr = (unsigned int *)ioremap(0x020e010c, 8);
-    *addr = 0x5;
-    *(addr + 1) = 0x5;
+    addr = (unsigned int *)ioremap(EIM_EB0_REG, 8);
+    *addr = 0x5;                                   // set EIM_EB0 gpio function
+    *(addr + 1) = 0x5;                             // set EIM_EB1 gpio function
     iounmap(addr);
 
     gpio_request (EIM_EB0, "GPIO2_IO28");
@@ -131,8 +134,8 @@ int __init gpio_init_module(void)
 
 static void gpio_cleanup_module(void)
 {
-    gpio_direction_output (EIM_EB0, 0);
-    gpio_direction_output (EIM_EB1, 0);
+    gpio_set_value (EIM_EB0, 0);
+    gpio_set_value (EIM_EB1, 0);
     gpio_free (EIM_EB0);
     gpio_free (EIM_EB1);
 
@@ -142,7 +145,6 @@ static void gpio_cleanup_module(void)
 
     printk("gpio test Driver Module Unloaded\n");
 }
-
 
 module_init(gpio_init_module);
 module_exit(gpio_cleanup_module);
