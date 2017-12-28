@@ -18,6 +18,12 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 
+#define DEVICE_NAME "gpio"
+#define CLASS_NAME  "gpio_test"
+
+static int gMajor; /* major number of device */
+static struct class *gpio_class;
+
 #define IMX_GPIO_NR(bank, nr)  (((bank) - 1) * 32 + (nr))
 #define EIM_EB0 (IMX_GPIO_NR(2, 28))
 #define EIM_EB1 (IMX_GPIO_NR(2, 29))
@@ -27,27 +33,29 @@
 #define EIM_EB1_HIGH   (0x60002)
 #define EIM_EB1_LOW    (0x60003)
 
-static long gpio_ioctl (struct file *filp, unsigned int cmd, unsigned long arg)
+static long gpio_ioctl (struct file *filp,
+                        unsigned int cmd,
+                        unsigned long arg)
 {
+    unsigned int tmp, i;
+    if (arg)
+        i = copy_from_user(&tmp,(void *)arg,sizeof(tmp));
+
     switch (cmd) {
         case EIM_EB0_HIGH:
             gpio_set_value(EIM_EB0, 1);
-            printk ("EIM_EB0_HIGH \n");
             break;
 
         case EIM_EB0_LOW:
             gpio_set_value(EIM_EB0, 0);
-            printk ("EIM_EB0_LOW \n");
             break;
 
         case EIM_EB1_HIGH:
             gpio_set_value(EIM_EB1, 1);
-            printk ("EIM_EB1_HIGH \n");
             break;
 
         case EIM_EB1_LOW:
             gpio_set_value(EIM_EB1, 0);
-            printk ("EIM_EB1_LOW \n");
             break;
 
         default:
@@ -61,22 +69,56 @@ struct file_operations gpio_fops = {
     unlocked_ioctl: gpio_ioctl,
 };
 
-static struct miscdevice gpio_misc = {
-    .minor = MISC_DYNAMIC_MINOR,
-    .name = "gpio",
-    .fops = &gpio_fops
-};
-
 int __init gpio_init_module(void)
 {
     unsigned int *addr = NULL;
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,26))
+    struct device *temp_class;
+#else
+    struct class_device *temp_class;
+#endif
+    int error;
+
+    /* register a character device */
+    error = register_chrdev(0, DEVICE_NAME, &gpio_fops);
+    if (error < 0) {
+        printk("gpio test driver can't get major number\n");
+        return error;
+    }
+    gMajor = error;
+    printk("gpio test major number = %d\n",gMajor);
+
+    /*  */
+    gpio_class = class_create(THIS_MODULE, CLASS_NAME);
+    if (IS_ERR(gpio_class)) {
+        printk(KERN_ERR "Error creating register test module class.\n");
+        unregister_chrdev(gMajor, DEVICE_NAME);
+        return PTR_ERR(gpio_class);
+    }
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28))
+    temp_class = device_create(gpio_class, NULL,
+                   MKDEV(gMajor, 0), NULL, DEVICE_NAME);
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,26))
+    temp_class = device_create(gpio_class, NULL,
+                   MKDEV(gMajor, 0), DEVICE_NAME);
+#else
+    temp_class = class_device_create(gpio_class, NULL,
+                         MKDEV(gMajor, 0), NULL,
+                         DEVICE_NAME);
+#endif
+    if (IS_ERR(temp_class)) {
+        printk(KERN_ERR "Error creating gpio test class device.\n");
+        class_destroy(gpio_class);
+        unregister_chrdev(gMajor, DEVICE_NAME);
+        return -1;
+    }
+
     addr = (unsigned int *)ioremap(0x020e010c, 8);
     *addr = 0x5;
     *(addr + 1) = 0x5;
     iounmap(addr);
-
-	/* register a character device */
-    misc_register(&gpio_misc);
 
     gpio_request (EIM_EB0, "GPIO2_IO28");
     gpio_request (EIM_EB1, "GPIO2_IO29");
@@ -94,7 +136,10 @@ static void gpio_cleanup_module(void)
     gpio_free (EIM_EB0);
     gpio_free (EIM_EB1);
 
-    misc_deregister(&gpio_misc);
+    unregister_chrdev(gMajor, DEVICE_NAME);
+    device_destroy(gpio_class, MKDEV(gMajor, 0));
+    class_destroy(gpio_class);
+
     printk("gpio test Driver Module Unloaded\n");
 }
 
