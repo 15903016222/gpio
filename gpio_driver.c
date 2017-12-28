@@ -31,10 +31,10 @@ static struct class *gpio_class;
 #define EIM_EB0 (IMX_GPIO_NR(2, 28))
 #define EIM_EB1 (IMX_GPIO_NR(2, 29))
 
-#define EIM_EB0_HIGH   (0x60000)
-#define EIM_EB0_LOW    (0x60001)
-#define EIM_EB1_HIGH   (0x60002)
-#define EIM_EB1_LOW    (0x60003)
+#define EIM_EB1_LOW    (0x6000)
+#define EIM_EB1_HIGH   (0x6001)
+#define EIM_EB0_LOW    (0x6002)
+#define EIM_EB0_HIGH   (0x6003)
 
 static long gpio_ioctl (struct file *filp,
                         unsigned int cmd,
