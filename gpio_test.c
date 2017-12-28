@@ -26,12 +26,19 @@ int main(int argc,char **argv) {
 		return -1;
 	}
 
+	printf ("Press enter to set EIM_EB0 high:");
+	getchar ();
 	res = ioctl (fd, EIM_EB0_HIGH, &tmp);
-	sleep (1);
+
+	printf ("Press enter to set EIM_EB0 low:");
+	getchar ();
 	res = ioctl (fd, EIM_EB0_LOW, &tmp);
-	sleep (1);
+
+	printf ("Press enter to set EIM_EB1 high:");
+	getchar ();
 	res = ioctl (fd, EIM_EB1_HIGH, &tmp);
-	sleep (1);
+	printf ("Press enter to set EIM_EB1 low:");
+	getchar ();
 	res = ioctl (fd, EIM_EB1_LOW, &tmp);
 	
 	close (fd);
